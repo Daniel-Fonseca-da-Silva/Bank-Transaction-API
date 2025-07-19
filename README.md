@@ -31,8 +31,8 @@ This banking system serves as a digital wallet platform that enables:
 - **Maven**: For dependency management and build process
 
 ### Containerization
-- **Docker**: For containerized deployment
-- **Docker Compose**: For local development environment
+- **Docker**: Multi-stage build for optimized containerized deployment
+- **Docker Compose**: Complete local development environment with MySQL database
 
 ## Architecture & Best Practices
 
@@ -215,12 +215,14 @@ The system provides comprehensive error handling with proper HTTP status codes:
 ## Getting Started
 
 ### Prerequisites
-- Java 24
-- Maven 3.6+
-- Docker and Docker Compose
-- MySQL 8.0 (or use Docker)
+- Java 24 (for local development)
+- Maven 3.6+ (for local development)
+- Docker and Docker Compose (for containerized deployment)
+- MySQL 8.0 (automatically provided by Docker Compose)
 
 ### Local Development Setup
+
+#### Option 1: Using Docker Compose (Recommended)
 
 1. **Clone the repository**:
    ```bash
@@ -228,12 +230,29 @@ The system provides comprehensive error handling with proper HTTP status codes:
    cd bank-app
    ```
 
-2. **Start the database**:
+2. **Start the complete environment**:
    ```bash
    docker-compose -f docker/docker-compose.yml up -d
    ```
 
-3. **Run the application**:
+3. **Access the application**:
+   - Application URL: `http://localhost:8080`
+   - Database: `localhost:3306` (user: admin, password: 123, database: bankapp)
+
+#### Option 2: Local Development
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd bank-app
+   ```
+
+2. **Start only the database**:
+   ```bash
+   docker-compose -f docker/docker-compose.yml up mysql -d
+   ```
+
+3. **Run the application locally**:
    ```bash
    ./mvnw spring-boot:run
    ```
@@ -244,8 +263,9 @@ The system provides comprehensive error handling with proper HTTP status codes:
 
 ### Configuration
 
-The application uses the following default configuration in `application.properties`:
+The application supports multiple deployment configurations:
 
+#### Local Development (`application.properties`)
 ```properties
 spring.application.name=bank-app
 spring.jpa.hibernate.ddl-auto=update
@@ -254,6 +274,63 @@ spring.datasource.username=admin
 spring.datasource.password=123
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
+```
+
+#### Docker Environment
+When running with Docker Compose, the application uses environment variables:
+- `SPRING_PROFILES_ACTIVE=docker`
+- `SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bankapp`
+- `CLIENT_AUTHORIZATION_SERVICE_URL=https://71c496fa5e7e4d5896fff4c6805c8597.api.mockbin.io/`
+- `CLIENT_NOTIFICATION_SERVICE_URL=https://c937dc8166354ea2bb59cda56cd52d00.api.mockbin.io/`
+
+## Docker
+
+### Dockerfile
+The application uses a multi-stage Dockerfile for optimized builds:
+
+```dockerfile
+# Multi-stage Dockerfile for Spring Boot application
+FROM maven:latest AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]
+```
+
+### Docker Compose
+The `docker/docker-compose.yml` file provides a complete development environment:
+
+- **MySQL 8.0**: Database with persistent volume
+- **Bank App**: Spring Boot application with Docker profile
+- **External Services**: Mock authorization and notification services
+
+### Docker Commands
+
+**Build and run the complete environment**:
+```bash
+docker-compose -f docker/docker-compose.yml up -d
+```
+
+**View logs**:
+```bash
+docker-compose -f docker/docker-compose.yml logs -f
+```
+
+**Stop the environment**:
+```bash
+docker-compose -f docker/docker-compose.yml down
+```
+
+**Rebuild the application**:
+```bash
+docker-compose -f docker/docker-compose.yml up -d --build
 ```
 
 ## Testing

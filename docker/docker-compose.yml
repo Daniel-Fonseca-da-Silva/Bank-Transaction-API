@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: mysql-1
+    container_name: mysql-bank-app
     ports:
       - "3306:3306"
     environment:
@@ -12,6 +12,28 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+
+  bank-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: bank-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bankapp
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=123
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
+      - SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=true
+      - CLIENT_AUTHORIZATION_SERVICE_URL=https://71c496fa5e7e4d5896fff4c6805c8597.api.mockbin.io/
+      - CLIENT_NOTIFICATION_SERVICE_URL=https://c937dc8166354ea2bb59cda56cd52d00.api.mockbin.io/
+    depends_on:
+      - mysql
     restart: unless-stopped
 
 volumes:
